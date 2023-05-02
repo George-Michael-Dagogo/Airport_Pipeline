@@ -29,4 +29,4 @@
 # Solution 
 
 ## Data model for thie airport database
-![alt text](https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/airport_data_model.jpg)
+![alt text](https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/airpot_data_model.jpg)
