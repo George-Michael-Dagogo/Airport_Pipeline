@@ -21,9 +21,14 @@
 ## Data sources
 ### http://download.geonames.org/export/dump/
 ### https://ourairports.com/data
+### Details on ourairports data is found here: https://ourairports.com/help/data-dictionary.html
+
 
 -------
 # Solution 
+
+## Data model for thie airport database
+![alt text](https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/airport_data_model.jpg)
 
 ## Files :
 -------
