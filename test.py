@@ -1,16 +1,22 @@
-from prefect.schedules import Schedule
-from pre import CronClock
-from prefect import task, Flow
+from snowflake.sqlalchemy import URL 
+from sqlalchemy import create_engine 
 
-schedule = Schedule(clocks=[CronClock("0 9 * * *")])
+engine = create_engine(URL( #https://plninim-tg58176.snowflakecomputing.com
+                          user= 'GEORGE9042',
+                          account='plninim-tg58176',
+                          #region='switzerland-north.azure',
+                          password = 'George9042',
+                          warehouse='COMPUTE_WH',
+                          database='MY_TEST', 
+                          schema='NEW',
+                          role='ACCOUNTADMIN'
+                          ))
 
-@task
-def task1():
-    print("Hello, World!")
 
-with Flow("my-flow") as flow:
-    t1 = task1()
-
-flow.schedule = schedule
-
-
+connection = engine.connect()
+try:
+    connection.execute('select * from airports')
+finally:
+    connection.close()
+    engine.dispose()
+       
