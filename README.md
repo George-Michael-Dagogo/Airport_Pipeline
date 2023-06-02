@@ -26,10 +26,15 @@
 
 
 -------
+-------
 # Solution 
 
-## Both Data Engineering and Data Analytics project 
+-------
+## Overview
+### Both Data Engineering and Data Analytics project 
 ### I first answered the business questions with Pyspark and pandas (https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/solutions_with_pandas_%26_pyspark.ipynb) but also went further to answer them with SQL using Snowflake (https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/solutions_with_snowflake_SQL.ipynb) by creating views of the questions that returns the answers as tables
+
+
 
 ## Data model for the airport/geonames database
 ![alt text](https://github.com/George-Michael-Dagogo/Airport_Pipeline/blob/main/airpot_database_model.jpg)
