@@ -1,19 +1,27 @@
-from pyspark.sql import SparkSession
 import os
+from azure.storage.blob import BlobServiceClient, BlobClient
 
-spark = SparkSession.builder.appName("ReadTextFile").getOrCreate()
-header_names = ["geoname_id", "name", "asciiname","alternatenames","latitude","longitude",
-    "feature_class","feature_code","country_code","altcountry_code","admin1_code","admin2_code"
-    ,"admin3_code","admin4_code","population","elevation","DEM","timezone","modification_date" ]
-path4 = "/workspace/Airport_Pipeline/Geonames_data/allCountries.txt"
+def load_blob_storage(storage_connection_string, container_name, source_directory):
+    # Create a BlobServiceClient using the storage connection string
+    blob_service_client = BlobServiceClient.from_connection_string(storage_connection_string)
 
+    # Get a reference to the container
+    container_client = blob_service_client.get_container_client(container_name)
 
+    # List all files in the source directory
+    for file_name in os.listdir(source_directory):
+        source_file_path = os.path.join(source_directory, file_name)
 
-df = spark.read.option("header", "true").option("delimiter", "\t").csv(path4).toDF(*header_names)
+        blob_client = container_client.get_blob_client(file_name)
 
-df.coalesce(1).write.mode("overwrite").option("header", "true").csv("/workspace/Airport_Pipeline/Geonames_data/countries.csv")
+        with open(source_file_path, "rb") as data:
+            blob_client.upload_blob(data)
 
-for k in os.listdir(path3):
-    if k.endswith('.csv'):
-        os.rename(path3 + '/'+ k,'../Airport_Pipeline/Geonames_data/all_countries.csv')
+        print(f"File '{source_file_path}' uploaded to Blob Storage.")
 
+# Example usage
+storage_connection_string = ""
+container_name = "testtech"
+source_directory = "../Airport_Pipeline/Airport_data"
+
+load_blob_storage(storage_connection_string, container_name, source_directory)
