@@ -4,12 +4,15 @@ from pyspark.sql import SparkSession
 import pandas as pd
 import shutil
 from azure.storage.blob import BlobServiceClient, BlobClient
-
-path = "../Airport_Pipeline/Airport_data"
+import psycopg2
+import datetime
+path = "../Airport_Pipeline/Airport_data/"
 path2 = "../Airport_Pipeline/Geonames_data"
 path3 = '../Airport_Pipeline/Geonames_data/countries.csv'
 
-def extract():
+today = datetime.date.today()
+
+def extract_data_sources():
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -30,7 +33,7 @@ def extract():
     #gets the data i need using wget with the links stored in two text files (airport.txt and geonames.txt ) \
     # and saves it to the directory as indicated above
 
-def transform():
+def pre_process_transform():
     for k in os.listdir(path2):
         if k.endswith('.zip'):
             with zipfile.ZipFile(path2+ '/'+k) as zf:
@@ -64,6 +67,45 @@ def transform():
     #checks in the directory path3 for any csv file and renames it to all_countries.csv
     shutil.rmtree('../Airport_Pipeline/Geonames_data/countries.csv')
 
+    url = "https://www.geonames.org/statistics/"
+    response = requests.get(url)
+    soup = BeautifulSoup(response.content, "html.parser")
+
+    table = soup.find("table", class_="restable sortable")
+
+    data = []
+    headers = []
+    if table:
+        # Extract table headers
+        th_elements = table.find_all("th")
+        headers = [th.text.strip() for th in th_elements]
+
+        # Extract table rows
+        rows = table.find_all("tr")
+        for row in rows:
+            td_elements = row.find_all("td")
+            row_data = [td.text.strip() for td in td_elements]
+            if row_data:
+                data.append(row_data)
+
+    df = pd.DataFrame(data, columns = headers)
+    df.rename(columns = {'':'id', 'Names':'Areas'}, inplace = True)
+    df.drop(df.tail(2).index,inplace=True)
+    df.to_csv('../Airport_Pipeline/Airport_data/geo_countries.csv',index=False)
+
+    for file_name in os.listdir(path):
+        current_path = os.path.join(path, file_name)
+        
+        file_extension = os.path.splitext(file_name)[1]
+        
+        new_file_name = file_name[:-4] + '_'+ str(today) + file_extension
+        
+        new_path = os.path.join(path, new_file_name)
+
+        os.rename(current_path, new_path)
+
+    
+
 
 
 def load_blob_storage(storage_connection_string, container_name, source_directory):
@@ -90,12 +132,200 @@ def load_blob_storage(storage_connection_string, container_name, source_director
 
 
 def loading_database():
-    pass
 
-extract()
-transform()
+    # Database connection details
+    host = 'testtech.postgres.database.azure.com'
+    port = '5432'
+    database = 'postgres'
+    user = 'testtech'
+    password = 'George1234'
+
+    # CSV file details
+    csv_file_path = 'path_to_your_csv_file.csv'
+    table_name = 'your_table_name'
+
+    # Connect to the PostgreSQL database
+    conn = psycopg2.connect(
+        host=host,
+        port=port,
+        database=database,
+        user=user,
+        password=password
+    )
+
+    # Open a cursor to perform database operations
+    cursor = conn.cursor()
+
+    # Create the table if it doesn't exist (skip this step if the table is already created)
+    create_table_query = f"""
+-- Table: countries
+CREATE TABLE IF NOT EXISTS countries (
+    country_code CHAR(2) NOT NULL,
+    country_name VARCHAR(255) NOT NULL,
+    continent VARCHAR(255) NOT NULL,
+    PRIMARY KEY (country_code)
+);
+
+-- Table: regions
+CREATE TABLE IF NOT EXISTS regions (
+    region_code VARCHAR(4) NOT NULL,
+    iso_country CHAR(2) NOT NULL,
+    region_name VARCHAR(255) NOT NULL,
+    continent VARCHAR(255) NOT NULL,
+    PRIMARY KEY (region_code),
+    FOREIGN KEY (iso_country) REFERENCES countries (country_code)
+);
+
+-- Table: airports
+CREATE TABLE IF NOT EXISTS airports (
+    airport_id VARCHAR(10) NOT NULL,
+    type VARCHAR(255) NOT NULL,
+    airport_name VARCHAR(255) NOT NULL,
+    latitude_deg DOUBLE NOT NULL,
+    longitude_deg DOUBLE NOT NULL,
+    elevation_ft INT,
+    iso_country CHAR(2) NOT NULL,
+    iso_region VARCHAR(4) NOT NULL,
+    municipality VARCHAR(255),
+    scheduled_service VARCHAR(10),
+    gps_code VARCHAR(10),
+    iata_code VARCHAR(3),
+    local_code VARCHAR(10),
+    PRIMARY KEY (airport_id),
+    FOREIGN KEY (iso_country) REFERENCES countries (country_code),
+    FOREIGN KEY (iso_region) REFERENCES regions (region_code)
+);
+
+-- Table: airport_frequencies
+CREATE TABLE IF NOT EXISTS airport_frequencies (
+    airport_frequencies_id INT NOT NULL,
+    airport_id INT NOT NULL,
+    freq_type VARCHAR(10),
+    description VARCHAR(255),
+    frequency_mhz DECIMAL(9,6),
+    PRIMARY KEY (airport_frequencies_id),
+    FOREIGN KEY (airport_id) REFERENCES airports (airport_id)
+);
+
+-- Table: runways
+CREATE TABLE IF NOT EXISTS runways (
+    runway_id INT NOT NULL,
+    airport_id INT NOT NULL,
+    length_ft INT,
+    width_ft INT,
+    surface VARCHAR(255),
+    lighted TINYINT(1),
+    closed TINYINT(1),
+    PRIMARY KEY (runway_id),
+    FOREIGN KEY (airport_id) REFERENCES airports (airport_id)
+);
+
+-- Table: runways_lower_elevation
+CREATE TABLE IF NOT EXISTS runways_le (
+    le_id INT NOT NULL,
+    runway_id INT NOT NULL,
+    le_latitude_deg DOUBLE,
+    le_longitude_deg DOUBLE,
+    le_elevation_ft INT,
+    le_heading_degT INT,
+    le_displaced_threshold_ft INT,
+    PRIMARY KEY (le_id),
+    FOREIGN KEY (runway_id) REFERENCES runways (runway_id)
+);
+
+-- Table: runways_higher_elevation
+CREATE TABLE IF NOT EXISTS runways_he (
+    he_id INT NOT NULL,
+    runway_id INT NOT NULL,
+    he_latitude_deg DOUBLE,
+    he_longitude_deg DOUBLE,
+    he_elevation_ft INT,
+    he_heading_degT INT,
+    he_displaced_threshold_ft INT,
+    PRIMARY KEY (he_id),
+    FOREIGN KEY (runway_id) REFERENCES runways (runway_id)
+);
+
+-- Table: navaids
+CREATE TABLE IF NOT EXISTS navaids (
+    navaid_id INT PRIMARY KEY ,
+    filename VARCHAR(255),
+    ident VARCHAR(10),
+    type VARCHAR(255),
+    name VARCHAR(255),
+    frequency_khz INT,
+    latitude_deg DOUBLE,
+    longitude_deg DOUBLE,
+    elevation_ft INT,
+    iso_country CHAR(2),
+    slaved_variation DOUBLE,
+    magnetic_variation DOUBLE,
+    usage_type VARCHAR(255),
+    power DOUBLE,
+    associated_airport_ident VARCHAR(10),
+    FOREIGN KEY (associated_airport_ident) REFERENCES airports (airport_id),
+    FOREIGN KEY (iso_country) REFERENCES countries (countries_id)
+);
+
+--Table: distance-measuring equipment
+CREATE TABLE IF NOT EXISTS DME(
+    dme_id INT PRIMARY KEY AUTO_INCREMENT,
+    navaid_id INT,
+    dme_frequency DECIMAL(9,6),
+    dme_channel VARCHAR(255),
+    dme_latitude_deg DOUBLE,
+    dme_longitude_deg DOUBLE,
+    dme_elevation_ft INT,
+    FOREIGN KEY (navaid_id) REFERENCES navaids (navaid_id),
+)
+
+--Table: airport_comments
+CREATE TABLE IF NOT EXISTS airport_comments(
+    airport_comments_id INT PRIMARY KEY,
+    airport_id INT,
+    threadRef INT,
+    comment_date DATE,
+    memberNickname VARCHAR,
+    subject VARCHAR,
+    body VARCHAR,
+    FOREIGN KEY (airport_id) REFERENCES airports (airport_id),
+)
+
+--Table: GEO countries
+CREATE TABLE IF NOT EXISTS geo_countries(
+    geo_countries_id INT PRIMARY KEY,
+    areas INT,
+    country VARCHAR,
+    country_code VARCHAR ,
+    Area in km(sq) VARCHAR,
+    Names perkm(sq) VARCHAR,
+    population INT,
+    Names per1000 Inhabitants FLOAT,
+    FOREIGN KEY (country_code) REFERENCES countries (country_code)
+)
+    """
+    cursor.execute(create_table_query)
+    conn.commit()
+
+    # Import the CSV file into the table
+    import_query = f"""
+        COPY {table_name}
+        FROM '{csv_file_path}'
+        DELIMITER ','
+        CSV HEADER;
+    """
+    cursor.execute(import_query)
+    conn.commit()
+
+    # Close the cursor and database connection
+    cursor.close()
+    conn.close()
+
+
+
+
+extract_data_sources()
+pre_process_transform()
 
 storage_connection_string = ""
-container_name = "testtech"
-source_directory = path
-load_blob_storage(storage_connection_string, container_name, source_directory)
+#load_blob_storage(storage_connection_string,container_name = "testtech", source_directory = path)
