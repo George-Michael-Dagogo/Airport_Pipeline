@@ -6,6 +6,9 @@ import shutil
 from azure.storage.blob import BlobServiceClient, BlobClient
 import psycopg2
 import datetime
+import requests
+from bs4 import BeautifulSoup
+
 path = "../Airport_Pipeline/Airport_data/"
 path2 = "../Airport_Pipeline/Geonames_data"
 path3 = '../Airport_Pipeline/Geonames_data/countries.csv'
@@ -87,9 +90,11 @@ def pre_process_transform():
             row_data = [td.text.strip() for td in td_elements]
             if row_data:
                 data.append(row_data)
-
+    #change to dataframe
     df = pd.DataFrame(data, columns = headers)
+    #change column headers
     df.rename(columns = {'':'id', 'Names':'Areas'}, inplace = True)
+    #remove bottom row, dirty data
     df.drop(df.tail(2).index,inplace=True)
     df.to_csv('../Airport_Pipeline/Airport_data/geo_countries.csv',index=False)
 
@@ -276,8 +281,8 @@ CREATE TABLE IF NOT EXISTS DME(
     dme_latitude_deg DOUBLE,
     dme_longitude_deg DOUBLE,
     dme_elevation_ft INT,
-    FOREIGN KEY (navaid_id) REFERENCES navaids (navaid_id),
-)
+    FOREIGN KEY (navaid_id) REFERENCES navaids (navaid_id)
+);
 
 --Table: airport_comments
 CREATE TABLE IF NOT EXISTS airport_comments(
@@ -288,8 +293,8 @@ CREATE TABLE IF NOT EXISTS airport_comments(
     memberNickname VARCHAR,
     subject VARCHAR,
     body VARCHAR,
-    FOREIGN KEY (airport_id) REFERENCES airports (airport_id),
-)
+    FOREIGN KEY (airport_id) REFERENCES airports (airport_id)
+);
 
 --Table: GEO countries
 CREATE TABLE IF NOT EXISTS geo_countries(
@@ -297,12 +302,35 @@ CREATE TABLE IF NOT EXISTS geo_countries(
     areas INT,
     country VARCHAR,
     country_code VARCHAR ,
-    Area in km(sq) VARCHAR,
-    Names perkm(sq) VARCHAR,
+    Area_in_kmsq VARCHAR,
+    Names_per_kmsq VARCHAR,
     population INT,
-    Names per1000 Inhabitants FLOAT,
+    Names_per1000_Inhabitants FLOAT,
     FOREIGN KEY (country_code) REFERENCES countries (country_code)
-)
+);
+
+-- Table: Geoname
+CREATE TABLE IF NOT EXISTS geoname (
+    geoname_id INT PRIMARY KEY,
+    name VARCHAR(255),
+    asciiname VARCHAR(255),
+    alternatenames VARCHAR(255),
+    latitude FLOAT,
+    longitude FLOAT,
+    feature_class CHAR(1),
+    feature_code VARCHAR(10),
+    country_code CHAR(2),
+    altcountry_code CHAR(2),
+    admin1_code VARCHAR(20),
+    admin2_code VARCHAR(80),
+    admin3_code VARCHAR(20),
+    admin4_code VARCHAR(20),
+    population BIGINT,
+    elevation INT,
+    DEM INT,
+    timezone VARCHAR(40),
+    modification_date DATE
+);
     """
     cursor.execute(create_table_query)
     conn.commit()
