@@ -1,0 +1,21 @@
+create a new directory if you want and mkdir
+
+or go ahead and run this in your terminal
+
+wget https://dlcdn.apache.org/spark/spark-3.4.0/spark-3.4.0-bin-hadoop3.tgz
+
+then install it
+
+tar -xvf spark-3.4.0-bin-hadoop3.tgz
+
+Make sure you allow the ports to be opened! You can run:
+
+sudo apt install net-tools
+
+then
+
+netstat -na | grep 2181
+
+in a new terminal, navigate to the Spark directory and start the Spark server:
+
+sbin/start-all.sh

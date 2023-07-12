@@ -162,7 +162,7 @@ def loading_database():
     cursor = conn.cursor()
 
     # Create the table if it doesn't exist (skip this step if the table is already created)
-    create_table_query = f"""
+    create_table_query = """
 -- Table: countries
 CREATE TABLE IF NOT EXISTS countries (
     country_code CHAR(2) NOT NULL,
@@ -342,8 +342,8 @@ CREATE TABLE IF NOT EXISTS geoname (
         DELIMITER ','
         CSV HEADER;
     """
-    cursor.execute(import_query)
-    conn.commit()
+    #cursor.execute(import_query)
+    #conn.commit()
 
     # Close the cursor and database connection
     cursor.close()
